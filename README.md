@@ -1,8 +1,5 @@
 
 
-Here is the updated documentation. I've added a new, clear section for your assumptions, including the one about the car's movement.
-
----
 
 ## Path Planning Solution Documentation
 
