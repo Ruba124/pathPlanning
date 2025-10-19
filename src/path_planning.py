@@ -7,6 +7,8 @@ class PathPlanning:
     """
     This definitive version has a corrected _get_offset_path function
     that creates a single, safe waypoint and prevents all loops or backward motion.
+    It also sorts cones and waypoints by their x-coordinate to ensure correct
+    travel order and prevent backward turns.
     """
 
     def __init__(self, car_pose: CarPose, cones: List[Cone]):
@@ -56,7 +58,7 @@ class PathPlanning:
         """Generates a continuous path that never cuts the cone shapes and always moves forward."""
         car_pos = (self.car_pose.x, self.car_pose.y)
         
-        # --- FIX 1: Sort by x-coordinate (travel order) instead of distance ---
+        # Sort by x-coordinate (travel order) instead of distance
         blue_cones = sorted([c for c in self.cones if c.color == 1], key=lambda c: c.x)
         yellow_cones = sorted([c for c in self.cones if c.color == 0], key=lambda c: c.x)
 
@@ -90,12 +92,12 @@ class PathPlanning:
             # Call the new, corrected function
             waypoints = self._get_offset_path(yellow_cones, is_blue_shape=False)
 
-        # --- FIX 2: Sort the final waypoints by x-coordinate ---
-        # This ensures the path always moves left-to-right and prevents the backward turn.
+        # Sort the final waypoints by x-coordinate to ensure correct travel order
         waypoints.sort(key=lambda p: p[0])
 
-        path: Path2D = []
-        # The car_pos (0,0) is correctly added as the starting point here.
+        # Initialize the path list with car_pos (0,0) so the line plot starts there.
+        path: Path2D = [car_pos]
+        
         points_to_connect = [car_pos] + waypoints
 
         if len(points_to_connect) > 1:
@@ -106,6 +108,7 @@ class PathPlanning:
                 if segment_len > 0.01:
                     num_steps = max(1, int(segment_len / 0.4))
                     for j in range(1, num_steps + 1):
+                        # This loop now correctly appends the points *after* start_p
                         path.append((start_p[0] + (segment_dx / num_steps) * j,
                                      start_p[1] + (segment_dy / num_steps) * j))
 
@@ -116,7 +119,8 @@ class PathPlanning:
             if math.hypot(dx, dy) > 0.1:
                 final_heading = math.atan2(dy, dx)
 
-        last_point = path[-1] if path else car_pos
+        # last_point should be path[-1] because path is no longer empty
+        last_point = path[-1] 
         for i in range(1, 41):
             dist = 0.4 * i
             path.append((last_point[0] + math.cos(final_heading) * dist,
