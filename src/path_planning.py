@@ -43,20 +43,22 @@ class PathPlanning:
             unit_norm_x, unit_norm_y = norm_x / norm_mag, norm_y / norm_mag
             # Create the one and only waypoint
             waypoints.append((avg_point[0] + unit_norm_x * offset_distance, 
-                            avg_point[1] + unit_norm_y * offset_distance))
+                              avg_point[1] + unit_norm_y * offset_distance))
         else:
             # Fallback in case the cone center is at the car's position
             fallback_norm_x, fallback_norm_y = (0, -1) if is_blue_shape else (0, 1)
             waypoints.append((avg_point[0] + fallback_norm_x * offset_distance, 
-                            avg_point[1] + fallback_norm_y * offset_distance))
+                              avg_point[1] + fallback_norm_y * offset_distance))
 
         return waypoints
 
     def generatePath(self) -> Path2D:
         """Generates a continuous path that never cuts the cone shapes and always moves forward."""
         car_pos = (self.car_pose.x, self.car_pose.y)
-        blue_cones = sorted([c for c in self.cones if c.color == 1], key=lambda p: math.dist(car_pos, (p.x, p.y)))
-        yellow_cones = sorted([c for c in self.cones if c.color == 0], key=lambda p: math.dist(car_pos, (p.x, p.y)))
+        
+        # --- FIX 1: Sort by x-coordinate (travel order) instead of distance ---
+        blue_cones = sorted([c for c in self.cones if c.color == 1], key=lambda c: c.x)
+        yellow_cones = sorted([c for c in self.cones if c.color == 0], key=lambda c: c.x)
 
         waypoints = []
 
@@ -88,7 +90,12 @@ class PathPlanning:
             # Call the new, corrected function
             waypoints = self._get_offset_path(yellow_cones, is_blue_shape=False)
 
+        # --- FIX 2: Sort the final waypoints by x-coordinate ---
+        # This ensures the path always moves left-to-right and prevents the backward turn.
+        waypoints.sort(key=lambda p: p[0])
+
         path: Path2D = []
+        # The car_pos (0,0) is correctly added as the starting point here.
         points_to_connect = [car_pos] + waypoints
 
         if len(points_to_connect) > 1:
